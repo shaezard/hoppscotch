@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center"> 
   <a href="https://hoppscotch.io">
     <img
       src="https://avatars.githubusercontent.com/u/56705483"
