@@ -12,6 +12,7 @@ import {
 import { AuthService } from './auth.service';
 import { SignInMagicDto } from './dto/signin-magic.dto';
 import { VerifyMagicDto } from './dto/verify-magic.dto';
+import { TestSignInDto } from './dto/test-signin.dto';
 import { Response } from 'express';
 import * as E from 'fp-ts/Either';
 import { RTJwtAuthGuard } from './guards/rt-jwt-auth.guard';
@@ -225,5 +226,31 @@ export class AuthController {
       uid: user.uid,
       message: 'Token is valid',
     };
+  }
+
+  /**
+   ** Test-only authentication endpoint for load testing
+   ** Only works when TEST is in VITE_ALLOWED_AUTH_PROVIDERS
+   ** This endpoint should NEVER be enabled in production
+   */
+  @Post('test/signin')
+  @SkipThrottle()
+  async testSignIn(@Body() authData: TestSignInDto, @Res() res: Response) {
+    // Check if TEST auth provider is enabled
+    if (
+      !authProviderCheck(
+        AuthProvider.TEST,
+        this.configService.get('INFRA.VITE_ALLOWED_AUTH_PROVIDERS'),
+      )
+    ) {
+      throwHTTPErr({ message: AUTH_PROVIDER_NOT_SPECIFIED, statusCode: 404 });
+    }
+
+    const authTokens = await this.authService.signInTestAuth(
+      authData.email,
+      authData.password,
+    );
+    if (E.isLeft(authTokens)) throwHTTPErr(authTokens.left);
+    authCookieHandler(res, authTokens.right, false, null, this.configService);
   }
 }

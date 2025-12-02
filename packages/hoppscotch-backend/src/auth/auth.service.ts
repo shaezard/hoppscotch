@@ -15,6 +15,7 @@ import {
   MAGIC_LINK_EXPIRED,
   USER_NOT_FOUND,
   INVALID_REFRESH_TOKEN,
+  INVALID_TEST_CREDENTIALS,
 } from 'src/errors';
 import { validateEmail } from 'src/utils';
 import {
@@ -388,5 +389,80 @@ export class AuthService {
 
   getAuthProviders() {
     return this.infraConfigService.getAllowedAuthProviders();
+  }
+
+  /**
+   * Test-only authentication endpoint for load testing
+   * Only works when TEST is in VITE_ALLOWED_AUTH_PROVIDERS
+   * 
+   * @param email User's email (must start with 'loadtest-' or 'test-')
+   * @param password User's password
+   * @returns Either containing AuthTokens
+   */
+  async signInTestAuth(email: string, password: string) {
+    // Validate email format
+    if (!validateEmail(email)) {
+      return E.left({
+        message: INVALID_EMAIL,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+    }
+
+    // Only allow test users (emails starting with 'loadtest-' or 'test-')
+    if (!email.startsWith('loadtest-') && !email.startsWith('test-')) {
+      return E.left({
+        message: INVALID_TEST_CREDENTIALS,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+    }
+
+    // Find or create user by email
+    let user: AuthUser;
+    const queriedUser = await this.usersService.findUserByEmail(email);
+    
+    if (O.isNone(queriedUser)) {
+      // Auto-create test user if doesn't exist
+      // Store password in displayName for test users (simple approach for load testing)
+      user = await this.usersService.createUserViaMagicLink(email);
+      
+      // Update displayName to store the password
+      await this.prisma.user.update({
+        where: { uid: user.uid },
+        data: { displayName: password },
+      });
+
+      // Create provider account for test auth
+      const profile = {
+        provider: 'test',
+        id: email,
+      };
+      await this.usersService.createProviderAccount(user, null, null, profile);
+    } else {
+      user = queriedUser.value;
+      
+      // Verify password (stored in displayName for test users)
+      const storedPassword = user.displayName;
+      
+      if (storedPassword !== password) {
+        return E.left({
+          message: INVALID_TEST_CREDENTIALS,
+          statusCode: HttpStatus.UNAUTHORIZED,
+        });
+      }
+    }
+
+    // Generate auth tokens
+    const tokens = await this.generateAuthTokens(user.uid);
+    if (E.isLeft(tokens)) {
+      return E.left({
+        message: tokens.left.message,
+        statusCode: tokens.left.statusCode,
+      });
+    }
+
+    // Update last logged in time
+    this.usersService.updateUserLastLoggedOn(user.uid);
+
+    return E.right(tokens.right);
   }
 }

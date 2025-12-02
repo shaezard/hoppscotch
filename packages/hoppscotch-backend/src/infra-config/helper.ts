@@ -57,6 +57,8 @@ export function getAuthProviderRequiredKeys(
             InfraConfigEnum.MAILER_SMTP_URL,
             InfraConfigEnum.MAILER_ADDRESS_FROM,
           ],
+    // TEST auth provider requires no special infra config (used for load testing)
+    [AuthProvider.TEST]: [],
   };
 }
 

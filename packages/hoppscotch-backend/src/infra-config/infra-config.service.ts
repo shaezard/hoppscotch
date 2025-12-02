@@ -313,6 +313,9 @@ export class InfraConfigService implements OnModuleInit {
         } else {
           return configMap.MAILER_SMTP_URL && configMap.MAILER_ADDRESS_FROM;
         }
+      case AuthProvider.TEST:
+        // TEST auth provider requires no configuration (used for load testing)
+        return true;
       default:
         return false;
     }

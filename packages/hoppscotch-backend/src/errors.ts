@@ -899,6 +899,18 @@ export const MOCK_SERVER_INVALID_COLLECTION = 'mock_server/invalid_collection';
 export const MOCK_SERVER_ALREADY_EXISTS = 'mock_server/already_exists';
 
 /**
+ * Test authentication is disabled
+ * (AuthService)
+ */
+export const TEST_AUTH_DISABLED = 'auth/test_auth_disabled' as const;
+
+/**
+ * Invalid test credentials
+ * (AuthService)
+ */
+export const INVALID_TEST_CREDENTIALS = 'auth/invalid_test_credentials' as const;
+
+/**
  * Mock server creation failed
  * (MockServerService)
  */

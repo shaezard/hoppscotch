@@ -61,6 +61,34 @@
           />
         </form>
 
+        <form
+          v-if="mode === 'test'"
+          class="flex flex-col space-y-2"
+          @submit.prevent="signInWithTest"
+        >
+          <HoppSmartInput
+            v-model="form.email"
+            type="email"
+            placeholder=" "
+            :label="t('auth.email')"
+            input-styles="floating-input"
+          />
+
+          <HoppSmartInput
+            v-model="form.password"
+            type="password"
+            placeholder=" "
+            :label="t('auth.password')"
+            input-styles="floating-input"
+          />
+
+          <HoppButtonPrimary
+            :loading="signingInWithTest"
+            type="submit"
+            :label="t('auth.login')"
+          />
+        </form>
+
         <div
           v-if="!allowedAuthProviders?.length && !additionalLoginItems.length"
           class="flex flex-col items-center text-center"
@@ -116,7 +144,7 @@
           label="Privacy Policy"
         />
       </div>
-      <div v-if="mode === 'email'">
+      <div v-if="mode === 'email' || mode === 'test'">
         <HoppButtonSecondary
           :label="t('auth.all_sign_in_options')"
           :icon="IconArrowLeft"
@@ -159,6 +187,9 @@ import IconGoogle from "~icons/auth/google"
 import IconMicrosoft from "~icons/auth/microsoft"
 import IconArrowLeft from "~icons/lucide/arrow-left"
 import IconFileText from "~icons/lucide/file-text"
+import IconFlask from "~icons/lucide/flask-conical"
+
+import axios from "axios"
 
 import { useService } from "dioc/vue"
 import { LoginItemDef } from "~/platform/auth"
@@ -178,6 +209,7 @@ const persistenceService = useService(PersistenceService)
 
 const form = {
   email: "",
+  password: "",
 }
 
 const isLoadingAllowedAuthProviders = ref(true)
@@ -186,6 +218,7 @@ const signingInWithGoogle = ref(false)
 const signingInWithGitHub = ref(false)
 const signingInWithMicrosoft = ref(false)
 const signingInWithEmail = ref(false)
+const signingInWithTest = ref(false)
 const mode = ref("sign-in")
 
 const tosLink = import.meta.env.VITE_APP_TOS_LINK
@@ -356,6 +389,32 @@ const signInWithEmail = async () => {
     })
 }
 
+const signInWithTest = async () => {
+  signingInWithTest.value = true
+
+  try {
+    await axios.post(
+      `${import.meta.env.VITE_BACKEND_API_URL}/auth/test/signin`,
+      {
+        email: form.email,
+        password: form.password,
+      },
+      {
+        withCredentials: true,
+      }
+    )
+
+    // Reload page to get user details after successful login
+    window.location.reload()
+  } catch (e: any) {
+    console.error(e)
+    const errorMessage = e?.response?.data?.message || t("error.something_went_wrong")
+    toast.error(errorMessage)
+  } finally {
+    signingInWithTest.value = false
+  }
+}
+
 const authProvidersAvailable: AuthProviderItem[] = [
   {
     id: "GITHUB",
@@ -394,6 +453,15 @@ const authProvidersAvailable: AuthProviderItem[] = [
       mode.value = "email"
     },
     isLoading: signingInWithEmail,
+  },
+  {
+    id: "TEST",
+    icon: IconFlask,
+    label: t("auth.continue_with_test"),
+    action: () => {
+      mode.value = "test"
+    },
+    isLoading: signingInWithTest,
   },
 ]
 
